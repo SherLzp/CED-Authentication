@@ -1,8 +1,8 @@
 package main
 
 import (
+	"ced-paper/CED-Authentication/sm/sm9"
 	"crypto/rand"
-	"github.com/xlcetc/cryptogm/sm/sm9"
 )
 
 func GenMasterKey() (*sm9.MasterKey, error) {

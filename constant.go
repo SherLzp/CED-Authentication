@@ -1,7 +1,7 @@
 package main
 
 const (
-	H_Id = 1
+	H_Id byte = 1
 )
 
 var (
