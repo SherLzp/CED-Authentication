@@ -1,8 +1,12 @@
 package sm9
 
 import (
+	"ced-paper/CED-Authentication/_const"
 	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"hash"
+	"math/big"
 )
 
 func KDF(data []byte, keyByteLen int) []byte {
@@ -46,4 +50,46 @@ func XOR(a, b []byte) []byte {
 		result[i] = byte((a[i] ^ b[i]) & 255)
 	}
 	return result
+}
+
+func BigIntToStr(p *big.Int) string {
+	return hex.EncodeToString(p.Bytes())
+}
+
+func StrToBigInt(pStr string) *big.Int {
+	pBytes, _ := hex.DecodeString(pStr)
+	return new(big.Int).SetBytes(pBytes)
+}
+
+func EncodeEnc(enc *Sm9Enc) string {
+	encBytes, _ := json.Marshal(enc)
+	return hex.EncodeToString(encBytes)
+}
+
+func DecodeEnc(encStr string) *Sm9Enc {
+	enc := new(Sm9Enc)
+	encBytes, _ := hex.DecodeString(encStr)
+	json.Unmarshal(encBytes, &enc)
+	return enc
+}
+
+func Mk() *MasterKey {
+	mkBytes, _ := hex.DecodeString(_const.MK)
+	mk := new(MasterKey)
+	json.Unmarshal(mkBytes, &mk)
+	return mk
+}
+
+func Uk1() *UserKey {
+	uk1Bytes, _ := hex.DecodeString(_const.UK1)
+	uk := new(UserKey)
+	json.Unmarshal(uk1Bytes, &uk)
+	return uk
+}
+
+func Uk2() *UserKey {
+	uk2Bytes, _ := hex.DecodeString(_const.UK2)
+	uk := new(UserKey)
+	json.Unmarshal(uk2Bytes, &uk)
+	return uk
 }

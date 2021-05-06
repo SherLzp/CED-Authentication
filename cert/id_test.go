@@ -1,4 +1,4 @@
-package main
+package cert
 
 import (
 	"crypto/ecdsa"
@@ -11,7 +11,7 @@ import (
 
 func TestGenIdentity(t *testing.T) {
 	mk, _ := GenMasterKey()
-	uk, _ := GenUserKey(mk)
+	uk, _ := GenUserKey(mk,"Edge_A")
 	round := 1000
 	sk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk := sk.X.String() + sk.Y.String()
@@ -35,7 +35,7 @@ func TestGenIdentity(t *testing.T) {
 			t3 := time.Now()
 			for i := 0; i < round; i++ {
 				id, _ := GenIdentity(i, dName, dManu, time.Now().Unix())
-				Sign(uk, &mk.MasterPubKey, []byte(id))
+				Sign(uk, mk.Mpk, []byte(id))
 			}
 			e3 += time.Since(t3).Nanoseconds()
 		}

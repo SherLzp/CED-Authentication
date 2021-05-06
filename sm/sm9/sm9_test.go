@@ -29,13 +29,13 @@ func TestSign(t *testing.T) {
 
 	msg := []byte("message")
 
-	sig, err := Sign(uk, &mk.MasterPubKey, msg)
+	sig, err := Sign(uk, mk.Mpk, msg)
 	if err != nil {
 		t.Errorf("sm9 sign failed:%s", err)
 		return
 	}
 
-	if !Verify(sig, msg, uid, hid, &mk.MasterPubKey) {
+	if !Verify(sig, msg, uid, hid, mk.Mpk) {
 		t.Error("sm9 sig is invalid")
 		return
 	}
@@ -67,7 +67,7 @@ func BenchmarkSign(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = Sign(uk, &mk.MasterPubKey, msg)
+		_, _ = Sign(uk, mk.Mpk, msg)
 	}
 }
 
@@ -79,11 +79,11 @@ func BenchmarkVerify(b *testing.B) {
 
 	var msg = []byte("message")
 
-	sig, _ := Sign(uk, &mk.MasterPubKey, msg)
+	sig, _ := Sign(uk, mk.Mpk, msg)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Verify(sig, msg, id, byte(hid), &mk.MasterPubKey)
+		_ = Verify(sig, msg, id, byte(hid), mk.Mpk)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestDecrypt(t *testing.T) {
 	hid := byte(1)
 	uk, _ := UserKeyGen(mk, idA, hid)
 	m := []byte("test")
-	C1, C3, C2 := Encrypt(&mk.MasterEncPubKey, m, idA, hid)
-	mPrime := Decrypt(C1, C3, C2, idA, uk.EncSk)
+	enc := Encrypt(mk.MEncPk, m, idA, hid)
+	mPrime := Decrypt(enc, idA, uk.EncSk)
 	fmt.Println(string(mPrime))
 }

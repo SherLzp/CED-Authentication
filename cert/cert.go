@@ -1,4 +1,4 @@
-package main
+package cert
 
 import (
 	"crypto/ecdsa"
@@ -113,13 +113,13 @@ func main() {
 	fmt.Println("rootCert\n", string(rootCertPEM))
 	DCACert, DCACertPEM, DCAKey := GenDCA("id", rootCert, rootKey)
 	fmt.Println("DCACert\n", string(DCACertPEM))
-	verifyDCA(rootCert, DCACert)
+	VerifyDCA(rootCert, DCACert)
 	ServerCert, ServerPEM, _ := GenServerCert(DCACert, DCAKey)
 	fmt.Println("ServerPEM\n", string(ServerPEM))
 	verifyLow(rootCert, DCACert, ServerCert)
 }
 
-func verifyDCA(root, dca *x509.Certificate) {
+func VerifyDCA(root, dca *x509.Certificate) bool {
 	roots := x509.NewCertPool()
 	roots.AddCert(root)
 	opts := x509.VerifyOptions{
@@ -128,8 +128,10 @@ func verifyDCA(root, dca *x509.Certificate) {
 
 	if _, err := dca.Verify(opts); err != nil {
 		panic("failed to verify certificate: " + err.Error())
+		return false
 	}
 	fmt.Println("DCA verified")
+	return true
 }
 
 func verifyLow(root, DCA, child *x509.Certificate) {

@@ -40,6 +40,15 @@ type G1 struct {
 	p *curvePoint
 }
 
+func (p *G1) MarshalJSON() ([]byte, error) {
+	return p.Marshal(), nil
+}
+
+func (p *G1) UnmarshalJSON(data []byte) error {
+	_, err := p.Unmarshal(data)
+	return err
+}
+
 //Gen1 is the generator of G1.
 var Gen1 = &G1{curveGen}
 
@@ -170,6 +179,15 @@ func (e *G1) Unmarshal(m []byte) ([]byte, error) {
 // output of an operation, but cannot be used as an input.
 type G2 struct {
 	p *twistPoint
+}
+
+func (p *G2) MarshalJSON() ([]byte, error) {
+	return p.Marshal(), nil
+}
+
+func (p *G2) UnmarshalJSON(data []byte) error {
+	_, err := p.Unmarshal(data)
+	return err
 }
 
 //Gen2 is the generator of G2.

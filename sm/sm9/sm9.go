@@ -5,10 +5,10 @@
 package sm9
 
 import (
+	"ced-paper/CED-Authentication/elliptic/sm9curve"
 	"crypto/rand"
 	"encoding/binary"
 	"github.com/pkg/errors"
-	"github.com/xlcetc/cryptogm/elliptic/sm9curve"
 	"github.com/xlcetc/cryptogm/sm/sm3"
 	"io"
 	"math"
@@ -21,34 +21,6 @@ const (
 	H1 hashMode = iota
 	H2
 )
-
-//MasterKey contains a master secret key and a master public key.
-type MasterKey struct {
-	Msk    *big.Int
-	MEncsk *big.Int
-	MasterPubKey
-	MasterEncPubKey
-}
-
-type MasterPubKey struct {
-	Mpk *sm9curve.G2
-}
-
-type MasterEncPubKey struct {
-	MEncpk *sm9curve.G1
-}
-
-//UserKey contains a secret key.
-type UserKey struct {
-	Sk    *sm9curve.G1
-	EncSk *sm9curve.G2
-}
-
-//Sm9Sig contains a big number and an element in G1.
-type Sm9Sig struct {
-	H *big.Int
-	S *sm9curve.G1
-}
 
 //SMHash implements H1(Z,n) or H2(Z,n) in sm9 algorithm.
 func SMHash(z []byte, n *big.Int, h hashMode) *big.Int {
@@ -105,12 +77,11 @@ func MasterKeyGen(rand io.Reader) (mk *MasterKey, err error) {
 
 	mk = new(MasterKey)
 	mk.Msk = new(big.Int).Set(s1)
-	mk.MEncsk = new(big.Int).Set(s2)
+	mk.MEncSk = new(big.Int).Set(s2)
 
 	mk.Mpk = new(sm9curve.G2).ScalarBaseMult(s1)
-	mk.MEncpk = new(sm9curve.G1).ScalarBaseMult(s2)
-
-	return
+	mk.MEncPk = new(sm9curve.G1).ScalarBaseMult(s2)
+	return mk, nil
 }
 
 //generate user's secret key.
@@ -119,7 +90,7 @@ func UserKeyGen(mk *MasterKey, id []byte, hid byte) (uk *UserKey, err error) {
 	n := sm9curve.Order
 	t1 := SMHash(id, n, H1)
 	h1 := new(big.Int).Add(t1, mk.Msk)
-	h2 := new(big.Int).Add(t1, mk.MEncsk)
+	h2 := new(big.Int).Add(t1, mk.MEncSk)
 
 	//if t1 = 0, we need to regenerate the master key.
 	if t1.BitLen() == 0 || t1.Cmp(n) == 0 {
@@ -131,7 +102,7 @@ func UserKeyGen(mk *MasterKey, id []byte, hid byte) (uk *UserKey, err error) {
 
 	//t2 = s*t1^-1
 	t2 := new(big.Int).Mul(mk.Msk, h1)
-	t2Prime := new(big.Int).Mul(mk.MEncsk, h2)
+	t2Prime := new(big.Int).Mul(mk.MEncSk, h2)
 
 	uk = new(UserKey)
 	uk.Sk = new(sm9curve.G1).ScalarBaseMult(t2)
@@ -146,10 +117,10 @@ func UserKeyGen(mk *MasterKey, id []byte, hid byte) (uk *UserKey, err error) {
 //A4:compute h = H2(M||w,n);
 //A5:compute l = (r-h) mod n, if l = 0 goto A2;
 //A6:compute S = l·sk.
-func Sign(uk *UserKey, mpk *MasterPubKey, msg []byte) (sig *Sm9Sig, err error) {
+func Sign(uk *UserKey, mpk *sm9curve.G2, msg []byte) (sig *Sm9Sig, err error) {
 	sig = new(Sm9Sig)
 	n := sm9curve.Order
-	g := sm9curve.Pair(sm9curve.Gen1, mpk.Mpk)
+	g := sm9curve.Pair(sm9curve.Gen1, mpk)
 
 regen:
 	r, err := randFieldElement(rand.Reader, n)
@@ -187,9 +158,9 @@ regen:
 //B5:compute u = e(S',P);
 //B6:compute w' = u·t;
 //B7:compute h2 = H2(M'||w',n), check if h2 = h'.
-func Verify(sig *Sm9Sig, msg []byte, id []byte, hid byte, mpk *MasterPubKey) bool {
+func Verify(sig *Sm9Sig, msg []byte, id []byte, hid byte, mpk *sm9curve.G2) bool {
 	n := sm9curve.Order
-	g := sm9curve.Pair(sm9curve.Gen1, mpk.Mpk)
+	g := sm9curve.Pair(sm9curve.Gen1, mpk)
 
 	t := new(sm9curve.GT).ScalarMult(g, sig.H)
 
@@ -199,7 +170,7 @@ func Verify(sig *Sm9Sig, msg []byte, id []byte, hid byte, mpk *MasterPubKey) boo
 
 	P := new(sm9curve.G2).ScalarBaseMult(h1)
 
-	P.Add(P, mpk.Mpk)
+	P.Add(P, mpk)
 
 	u := sm9curve.Pair(sig.S, P)
 
@@ -218,15 +189,15 @@ func Verify(sig *Sm9Sig, msg []byte, id []byte, hid byte, mpk *MasterPubKey) boo
 	return true
 }
 
-func Encrypt(key *MasterEncPubKey, m []byte, id []byte, hid byte) (*sm9curve.G1, []byte, []byte) {
+func Encrypt(key *sm9curve.G1, m []byte, id []byte, hid byte) (*Sm9Enc) {
 	cId := append(id, hid)
 	n := sm9curve.Order
 	t1 := SMHash(cId, n, H1)
 	QB := new(sm9curve.G1).ScalarBaseMult(t1)
-	QB = new(sm9curve.G1).Add(QB, key.MEncpk)
+	QB = new(sm9curve.G1).Add(QB, key)
 	r, _ := randFieldElement(rand.Reader, n)
 	C1 := new(sm9curve.G1).ScalarMult(QB, r)
-	g := sm9curve.Pair(key.MEncpk, sm9curve.Gen2)
+	g := sm9curve.Pair(key, sm9curve.Gen2)
 	w := new(sm9curve.GT).ScalarMult(g, r)
 	klen := len(m) + 32
 	var t []byte
@@ -238,10 +209,18 @@ func Encrypt(key *MasterEncPubKey, m []byte, id []byte, hid byte) (*sm9curve.G1,
 	k2 := k[len(m) : len(m)+32]
 	C2 := XOR(m, k1)
 	C3 := MAC(k2, C2)
-	return C1, C3, C2
+	res := &Sm9Enc{
+		C1: C1,
+		C3: C3,
+		C2: C2,
+	}
+	return res
 }
 
-func Decrypt(C1 *sm9curve.G1, C3 []byte, C2 []byte, id []byte, deb *sm9curve.G2) []byte {
+func Decrypt(enc *Sm9Enc, id []byte, deb *sm9curve.G2) []byte {
+	C1 := enc.C1
+	C3 := enc.C3
+	C2 := enc.C2
 	wPrime := sm9curve.Pair(C1, deb)
 	klen := len(C2) + 32
 	var t []byte
